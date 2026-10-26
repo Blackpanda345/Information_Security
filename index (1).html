@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
+  <title>SecureGate</title>
+  <meta name="description" content="Login system with two-factor authentication, role-based authorization, and salted + peppered password hashing.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M16 6l8 3v6c0 5-3.4 9-8 11-4.6-2-8-6-8-11V9z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <noscript><p class="noscript">SecureGate needs JavaScript enabled to work.</p></noscript>
+
+  <main class="shell">
+    <header class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28"><path d="M16 4l10 4v7c0 6-4.2 10.6-10 13C10.2 25.600 6 21 6 15V8z" fill="currentColor"/></svg>
+      </span>
+      <div>
+        <h1>SecureGate</h1>
+        <p class="tagline">Identify. Authenticate. Authorize.</p>
+      </div>
+    </header>
+
+    <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+
+    <!-- ============ LOGIN: step 1 (identification + password) ============ -->
+    <section id="view-login" class="card view" aria-labelledby="t-login">
+      <h2 id="t-login">Sign in</h2>
+      <form id="form-login" novalidate>
+        <label for="login-user">Username</label>
+        <input id="login-user" type="text" autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" required>
+
+        <label for="login-pass">Password</label>
+        <div class="pw">
+          <input id="login-pass" type="password" autocomplete="current-password" maxlength="128" required>
+          <button type="button" class="ghost small" data-toggle="login-pass">Show</button>
+        </div>
+
+        <p id="login-error" class="error hidden" role="alert"></p>
+        <button id="login-btn" type="submit" class="primary">Continue</button>
+      </form>
+      <p class="switch">No account? <button type="button" class="link" data-go="view-register">Create one</button></p>
+    </section>
+
+    <!-- ============ LOGIN: step 2 (two-factor code) ============ -->
+    <section id="view-2fa" class="card view hidden" aria-labelledby="t-2fa">
+      <h2 id="t-2fa">Two-factor verification</h2>
+      <p class="muted">Open your authenticator app and enter the 6-digit code for <strong id="twofa-user"></strong>.</p>
+      <form id="form-2fa" novalidate>
+        <label for="twofa-code">6-digit code</label>
+        <input id="twofa-code" class="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+        <p id="twofa-error" class="error hidden" role="alert"></p>
+        <button id="twofa-btn" type="submit" class="primary">Verify and sign in</button>
+      </form>
+      <p class="switch"><button type="button" class="link" id="twofa-cancel">Cancel</button></p>
+    </section>
+
+    <!-- ============ REGISTER: step 1 ============ -->
+    <section id="view-register" class="card view hidden" aria-labelledby="t-reg">
+      <h2 id="t-reg">Create account</h2>
+      <form id="form-register" novalidate>
+        <label for="reg-user">Username <span class="hint">3-20 letters, numbers or _</span></label>
+        <input id="reg-user" type="text" autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" required>
+
+        <label for="reg-pass">Password</label>
+        <div class="pw">
+          <input id="reg-pass" type="password" autocomplete="new-password" maxlength="128" required>
+          <button type="button" class="ghost small" data-toggle="reg-pass">Show</button>
+        </div>
+        <ul id="pw-rules" class="rules" aria-live="polite"></ul>
+
+        <label for="reg-pass2">Confirm password</label>
+        <input id="reg-pass2" type="password" autocomplete="new-password" maxlength="128" required>
+
+        <p id="reg-error" class="error hidden" role="alert"></p>
+        <button id="reg-btn" type="submit" class="primary">Create account</button>
+      </form>
+      <p class="switch">Already registered? <button type="button" class="link" data-go="view-login">Sign in</button></p>
+    </section>
+
+    <!-- ============ REGISTER: step 2 (enrol authenticator) ============ -->
+    <section id="view-enroll" class="card view hidden" aria-labelledby="t-enroll">
+      <h2 id="t-enroll">Set up two-factor authentication</h2>
+      <ol class="steps">
+        <li>Open an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 2FAS...).</li>
+        <li>Choose <strong>Add account</strong> then <strong>Enter a setup key</strong>.</li>
+        <li>Account: <strong id="enroll-user"></strong> &nbsp;|&nbsp; Type: <strong>Time-based</strong></li>
+        <li>Key:</li>
+      </ol>
+      <div class="secret-row">
+        <code id="enroll-secret" class="secret"></code>
+        <button type="button" class="ghost small" id="copy-secret">Copy</button>
+      </div>
+      <p class="muted small-text">Keep this key private. It is shown only once and proves it is really you at every sign-in.</p>
+
+      <form id="form-enroll" novalidate>
+        <label for="enroll-code">Enter the 6-digit code now showing in the app</label>
+        <input id="enroll-code" class="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+        <p id="enroll-error" class="error hidden" role="alert"></p>
+        <button id="enroll-btn" type="submit" class="primary">Confirm and finish</button>
+      </form>
+      <p class="switch"><button type="button" class="link" id="enroll-cancel">Cancel registration</button></p>
+    </section>
+
+    <!-- ============ DASHBOARD (authorization by role) ============ -->
+    <section id="view-dashboard" class="view hidden" aria-labelledby="t-dash">
+      <div class="card who">
+        <div>
+          <h2 id="t-dash">Welcome, <span id="who-name"></span></h2>
+          <p class="muted">Role: <span id="who-role" class="badge"></span></p>
+          <p class="muted small-text">Session ends after <span id="idle-min"></span> minutes without activity.</p>
+        </div>
+        <button id="logout-btn" type="button" class="ghost">Sign out</button>
+      </div>
+      <div class="card">
+        <h3>Your permissions</h3>
+        <ul id="perm-list" class="chips"></ul>
+      </div>
+      <div id="cards" class="grid"></div>
+    </section>
+
+    <footer class="foot">Educational demo: data is stored in this browser only.</footer>
+  </main>
+
+  <script src="crypto.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
